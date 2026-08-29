@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>テトリス風パズルゲーム</title>
 <style>
   :root {
@@ -12,72 +12,108 @@
     --border: #333750;
     --text: #e8e8f0;
     --accent: #6c8cff;
+    --app-height: 100vh;
   }
   * { box-sizing: border-box; }
-  body {
+  html, body {
+    height: 100%;
     margin: 0;
-    min-height: 100vh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body {
     background: var(--bg);
     color: var(--text);
     font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  #app {
+    height: var(--app-height);
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 12px;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: manipulation;
+    justify-content: flex-start;
+    padding: env(safe-area-inset-top, 6px) env(safe-area-inset-right, 6px)
+             env(safe-area-inset-bottom, 6px) env(safe-area-inset-left, 6px);
+    gap: 6px;
+    overflow: hidden;
   }
   h1 {
-    font-size: 1.3rem;
-    margin: 6px 0 12px;
-    letter-spacing: 0.05em;
+    font-size: clamp(0.85rem, 3.6vw, 1.1rem);
+    margin: 0;
+    letter-spacing: 0.04em;
+    flex: 0 0 auto;
+    text-align: center;
   }
-  .layout {
+  #stats-bar {
+    flex: 0 0 auto;
+    width: 100%;
     display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    flex-wrap: wrap;
+    gap: 6px;
     justify-content: center;
-    max-width: 480px;
+  }
+  .stat {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 4px;
+    text-align: center;
+    min-width: 0;
+  }
+  .stat h2 {
+    font-size: 0.62rem;
+    margin: 0;
+    color: #9aa2c0;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .stat .value {
+    font-size: clamp(0.85rem, 3.6vw, 1.1rem);
+    font-weight: bold;
+    color: var(--accent);
+    line-height: 1.3;
+  }
+  #next-stat {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+  }
+  #next-canvas {
+    background: #000;
+    border-radius: 4px;
+    display: block;
+  }
+  #pause-btn {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    background: #3a3f5a;
+    border-radius: 6px;
+    border: none;
+    color: var(--text);
   }
   #board-wrap {
     position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
   }
   canvas#board {
     background: #000;
     border: 3px solid var(--border);
     border-radius: 6px;
     display: block;
-  }
-  .side {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 120px;
-  }
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 14px;
-  }
-  .panel h2 {
-    font-size: 0.8rem;
-    margin: 0 0 4px;
-    color: #9aa2c0;
-    font-weight: 500;
-  }
-  .panel .value {
-    font-size: 1.4rem;
-    font-weight: bold;
-    color: var(--accent);
-  }
-  #next-canvas {
-    background: #000;
-    border-radius: 4px;
-    display: block;
-    margin-top: 4px;
   }
   #overlay {
     position: absolute;
@@ -88,17 +124,17 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: 10px;
     border-radius: 4px;
     text-align: center;
     padding: 16px;
   }
   #overlay.show { display: flex; }
-  #overlay h2 { margin: 0; font-size: 1.3rem; }
-  #overlay p { margin: 0; font-size: 0.95rem; color: #ccc; }
+  #overlay h2 { margin: 0; font-size: 1.1rem; }
+  #overlay p { margin: 0; font-size: 0.9rem; color: #ccc; }
   button {
-    font-size: 1rem;
-    padding: 10px 20px;
+    font-size: 0.95rem;
+    padding: 9px 18px;
     border-radius: 6px;
     border: none;
     background: var(--accent);
@@ -106,35 +142,27 @@
     cursor: pointer;
   }
   button:active { filter: brightness(0.85); }
-  #pause-btn {
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    background: #3a3f5a;
-  }
-  .controls-hint {
-    font-size: 0.75rem;
-    color: #888fb0;
-    line-height: 1.5;
-  }
   /* Touch controls */
   #touch-controls {
-    display: none;
-    margin-top: 14px;
+    flex: 0 0 auto;
     width: 100%;
     max-width: 320px;
+    display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
   }
   .touch-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: center;
+    width: 100%;
   }
   .tbtn {
-    width: 60px;
-    height: 52px;
-    font-size: 1.4rem;
+    flex: 1;
+    max-width: 76px;
+    height: clamp(38px, 9vh, 54px);
+    font-size: 1.3rem;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -144,19 +172,47 @@
     justify-content: center;
   }
   .tbtn:active { background: var(--accent); }
-  .tbtn.wide { width: 130px; }
-  @media (max-width: 520px), (pointer: coarse) {
-    #touch-controls { display: flex; }
+  @media (pointer: fine) and (min-width: 640px) {
+    #touch-controls { display: none; }
+  }
+  .controls-hint {
+    display: none;
+    font-size: 0.72rem;
+    color: #888fb0;
+    text-align: center;
+    flex: 0 0 auto;
+  }
+  @media (pointer: fine) and (min-width: 640px) {
+    .controls-hint { display: block; }
   }
 </style>
 </head>
 <body>
 
-<h1>テトリス風パズルゲーム</h1>
+<div id="app">
+  <h1>テトリス風パズルゲーム</h1>
 
-<div class="layout">
+  <div id="stats-bar">
+    <div class="stat">
+      <h2>スコア</h2>
+      <div class="value" id="score">0</div>
+    </div>
+    <div class="stat">
+      <h2>ライン</h2>
+      <div class="value" id="lines">0</div>
+    </div>
+    <div class="stat">
+      <h2>レベル</h2>
+      <div class="value" id="level">1</div>
+    </div>
+    <div class="stat" id="next-stat">
+      <canvas id="next-canvas" width="40" height="40"></canvas>
+    </div>
+    <button id="pause-btn">一時停止</button>
+  </div>
+
   <div id="board-wrap">
-    <canvas id="board" width="240" height="480"></canvas>
+    <canvas id="board"></canvas>
     <div id="overlay">
       <h2 id="overlay-title">ゲームオーバー</h2>
       <p id="overlay-text">スコア: 0</p>
@@ -164,40 +220,19 @@
     </div>
   </div>
 
-  <div class="side">
-    <div class="panel">
-      <h2>スコア</h2>
-      <div class="value" id="score">0</div>
-    </div>
-    <div class="panel">
-      <h2>消去ライン</h2>
-      <div class="value" id="lines">0</div>
-    </div>
-    <div class="panel">
-      <h2>レベル</h2>
-      <div class="value" id="level">1</div>
-    </div>
-    <div class="panel">
-      <h2>ネクスト</h2>
-      <canvas id="next-canvas" width="96" height="96"></canvas>
-    </div>
-    <button id="pause-btn">一時停止</button>
-    <div class="controls-hint">
-      ← → : 移動<br>
-      ↓ : ソフトドロップ<br>
-      ↑ / Space : 回転
-    </div>
+  <div class="controls-hint">
+    ← → : 移動　↓ : ソフトドロップ　↑ / Space : 回転
   </div>
-</div>
 
-<div id="touch-controls">
-  <div class="touch-row">
-    <button class="tbtn" id="btn-rotate">⟳</button>
-  </div>
-  <div class="touch-row">
-    <button class="tbtn" id="btn-left">◀</button>
-    <button class="tbtn" id="btn-down">▼</button>
-    <button class="tbtn" id="btn-right">▶</button>
+  <div id="touch-controls">
+    <div class="touch-row">
+      <button class="tbtn" id="btn-rotate">⟳</button>
+    </div>
+    <div class="touch-row">
+      <button class="tbtn" id="btn-left">◀</button>
+      <button class="tbtn" id="btn-down">▼</button>
+      <button class="tbtn" id="btn-right">▶</button>
+    </div>
   </div>
 </div>
 
@@ -205,12 +240,12 @@
 (function () {
   const COLS = 12;
   const ROWS = 24;
-  const CELL = 20;
+  let CELL = 20;
 
+  const appEl = document.getElementById('app');
+  const boardWrap = document.getElementById('board-wrap');
   const boardCanvas = document.getElementById('board');
   const ctx = boardCanvas.getContext('2d');
-  boardCanvas.width = COLS * CELL;
-  boardCanvas.height = ROWS * CELL;
 
   const nextCanvas = document.getElementById('next-canvas');
   const nctx = nextCanvas.getContext('2d');
@@ -276,6 +311,22 @@
 
   let board, current, next, score, lines, level, dropInterval, dropTimer,
       lastTime, running, gameOver, paused;
+
+  function setAppHeight() {
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', h + 'px');
+  }
+
+  function resizeBoard() {
+    const wrapRect = boardWrap.getBoundingClientRect();
+    const availW = Math.max(wrapRect.width, 1);
+    const availH = Math.max(wrapRect.height, 1);
+    const cell = Math.max(6, Math.floor(Math.min(availW / COLS, availH / ROWS)));
+    CELL = cell;
+    boardCanvas.width = COLS * CELL;
+    boardCanvas.height = ROWS * CELL;
+    if (typeof draw === 'function' && board) draw();
+  }
 
   function createBoard() {
     return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
@@ -490,7 +541,7 @@
   function drawNext() {
     nctx.fillStyle = '#000';
     nctx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
-    const size = 20;
+    const size = 9;
     const shape = next.shape;
     const offsetX = (nextCanvas.width / size - shape.length) / 2;
     const offsetY = (nextCanvas.height / size - shape.length) / 2;
@@ -539,6 +590,7 @@
     updateStats();
     next = newPiece(randomType());
     spawnPiece();
+    resizeBoard();
     requestAnimationFrame(loop);
   }
 
@@ -607,6 +659,22 @@
     e.preventDefault();
     rotate();
   }, { passive: false });
+
+  setAppHeight();
+  window.addEventListener('resize', () => {
+    setAppHeight();
+    resizeBoard();
+  });
+  window.addEventListener('orientationchange', () => {
+    setAppHeight();
+    resizeBoard();
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      setAppHeight();
+      resizeBoard();
+    });
+  }
 
   startGame();
 })();
