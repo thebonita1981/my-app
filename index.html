@@ -79,26 +79,48 @@
     color: var(--accent);
     line-height: 1.3;
   }
+  .stat.pulse .value {
+    animation: pulse-flash 0.6s ease;
+  }
+  @keyframes pulse-flash {
+    0% { color: #ff9c4d; transform: scale(1.25); }
+    100% { color: var(--accent); transform: scale(1); }
+  }
+  #toolbar {
+    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
   #next-stat {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2px 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
   }
   #next-canvas {
     background: #000;
     border-radius: 4px;
     display: block;
   }
-  #pause-btn {
+  #pause-btn, #bgm-btn {
     flex: 0 0 auto;
     padding: 4px 10px;
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     background: #3a3f5a;
     border-radius: 6px;
     border: none;
     color: var(--text);
+    min-width: 40px;
+  }
+  #bgm-btn[aria-pressed="false"] {
+    opacity: 0.55;
   }
   #board-wrap {
     position: relative;
@@ -205,9 +227,17 @@
       <h2>レベル</h2>
       <div class="value" id="level">1</div>
     </div>
-    <div class="stat" id="next-stat">
+    <div class="stat" id="elapsed-stat">
+      <h2>経過時間</h2>
+      <div class="value" id="elapsed">0:00</div>
+    </div>
+  </div>
+
+  <div id="toolbar">
+    <div id="next-stat">
       <canvas id="next-canvas" width="40" height="40"></canvas>
     </div>
+    <button id="bgm-btn" aria-pressed="true" title="BGMのオン/オフ">🔊 BGM</button>
     <button id="pause-btn">一時停止</button>
   </div>
 
@@ -253,11 +283,14 @@
   const scoreEl = document.getElementById('score');
   const linesEl = document.getElementById('lines');
   const levelEl = document.getElementById('level');
+  const elapsedEl = document.getElementById('elapsed');
+  const elapsedStatEl = document.getElementById('elapsed-stat');
   const overlay = document.getElementById('overlay');
   const overlayTitle = document.getElementById('overlay-title');
   const overlayText = document.getElementById('overlay-text');
   const retryBtn = document.getElementById('retry-btn');
   const pauseBtn = document.getElementById('pause-btn');
+  const bgmBtn = document.getElementById('bgm-btn');
 
   const COLORS = {
     I: '#4dd9ff',
@@ -311,6 +344,152 @@
 
   let board, current, next, score, lines, level, dropInterval, dropTimer,
       lastTime, running, gameOver, paused;
+
+  // ---- BGM (Web Audio API synth, no external audio files) ----
+  // An original 16-step chiptune-style loop (simple arpeggio + bass pulse).
+  // Playing sound through Web Audio (not an <audio>/<video> element) means
+  // it is silenced by the device's mute/silent switch, as requested.
+  const BGM_TEMPO = 132;
+  const SIXTEENTH = 60 / BGM_TEMPO / 4;
+  const LEAD_PATTERN = [
+    440, 523.25, 659.25, 523.25, 392, 493.88, 587.33, 493.88,
+    349.23, 440, 523.25, 440, 392, 466.16, 554.37, 466.16
+  ];
+  const BASS_PATTERN = [
+    220, null, null, null, 174.61, null, null, null,
+    130.81, null, null, null, 196, null, null, null
+  ];
+
+  let audioCtx = null;
+  let masterGain = null;
+  let bgmEnabled = true;
+  try {
+    const saved = localStorage.getItem('tetris_bgm_enabled');
+    if (saved !== null) bgmEnabled = saved === '1';
+  } catch (e) { /* localStorage unavailable */ }
+  let audioUnlocked = false;
+  let bgmPlaying = false;
+  let bgmIntervalId = null;
+  let bgmStepIndex = 0;
+  let bgmNextNoteTime = 0;
+  const BGM_SCHEDULE_AHEAD = 0.12;
+
+  function ensureAudioContext() {
+    if (audioCtx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    audioCtx = new Ctx();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.22;
+    masterGain.connect(audioCtx.destination);
+  }
+
+  function scheduleNote(freq, startTime, duration, type, peakGain) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.02);
+  }
+
+  function bgmScheduler() {
+    if (!audioCtx) return;
+    while (bgmNextNoteTime < audioCtx.currentTime + BGM_SCHEDULE_AHEAD) {
+      const step = bgmStepIndex % 16;
+      const leadFreq = LEAD_PATTERN[step];
+      if (leadFreq) {
+        scheduleNote(leadFreq, bgmNextNoteTime, SIXTEENTH * 0.85, 'square', 0.05);
+      }
+      const bassFreq = BASS_PATTERN[step];
+      if (bassFreq) {
+        scheduleNote(bassFreq, bgmNextNoteTime, SIXTEENTH * 3.6, 'triangle', 0.06);
+      }
+      bgmNextNoteTime += SIXTEENTH;
+      bgmStepIndex++;
+    }
+  }
+
+  function startBGM() {
+    if (!bgmEnabled || !audioUnlocked) return;
+    ensureAudioContext();
+    if (!audioCtx || bgmPlaying) return;
+    bgmPlaying = true;
+    bgmStepIndex = 0;
+    bgmNextNoteTime = audioCtx.currentTime + 0.05;
+    bgmScheduler();
+    bgmIntervalId = setInterval(bgmScheduler, 50);
+  }
+
+  function stopBGM() {
+    bgmPlaying = false;
+    if (bgmIntervalId) {
+      clearInterval(bgmIntervalId);
+      bgmIntervalId = null;
+    }
+  }
+
+  function refreshBgmButton() {
+    bgmBtn.textContent = bgmEnabled ? '🔊 BGM' : '🔇 BGM';
+    bgmBtn.setAttribute('aria-pressed', String(bgmEnabled));
+  }
+
+  function setBgmEnabled(enabled) {
+    bgmEnabled = enabled;
+    refreshBgmButton();
+    try { localStorage.setItem('tetris_bgm_enabled', enabled ? '1' : '0'); } catch (e) { /* ignore */ }
+    if (enabled) {
+      if (running && !paused && !gameOver) startBGM();
+    } else {
+      stopBGM();
+    }
+  }
+
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    ensureAudioContext();
+    if (!audioCtx) return;
+    audioCtx.resume().then(() => {
+      if (bgmEnabled && running && !paused && !gameOver) startBGM();
+    }).catch(() => {});
+  }
+
+  ['pointerdown', 'keydown', 'touchstart'].forEach((evt) => {
+    document.addEventListener(evt, unlockAudio, { once: true, passive: true });
+  });
+
+  bgmBtn.addEventListener('click', () => setBgmEnabled(!bgmEnabled));
+  refreshBgmButton();
+
+  // ---- Time-based difficulty ----
+  const TIME_STAGE_INTERVAL_MS = 120000; // every 2 minutes
+  const TIME_STAGE_STEP_MS = 45;
+  const MAX_TIME_STAGES = 14;
+  let elapsedMs = 0;
+  let timeStage = 0;
+  let lastDisplayedSecond = -1;
+
+  function recalcDropInterval() {
+    dropInterval = Math.max(
+      110,
+      1000 - (level - 1) * 60 - timeStage * TIME_STAGE_STEP_MS
+    );
+  }
+
+  function updateElapsedDisplay() {
+    const totalSeconds = Math.floor(elapsedMs / 1000);
+    if (totalSeconds === lastDisplayedSecond) return;
+    lastDisplayedSecond = totalSeconds;
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    elapsedEl.textContent = m + ':' + String(s).padStart(2, '0');
+  }
 
   function setAppHeight() {
     const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -399,7 +578,7 @@
       score += points;
       lines += cleared;
       level = Math.floor(lines / 10) + 1;
-      dropInterval = Math.max(100, 1000 - (level - 1) * 80);
+      recalcDropInterval();
       updateStats();
     }
   }
@@ -424,6 +603,7 @@
   function endGame() {
     gameOver = true;
     running = false;
+    stopBGM();
     overlayTitle.textContent = 'ゲームオーバー';
     overlayText.textContent = 'スコア: ' + score;
     overlay.classList.add('show');
@@ -565,6 +745,18 @@
 
     if (!paused) {
       dropTimer += delta;
+      elapsedMs += delta;
+
+      const newStage = Math.min(MAX_TIME_STAGES, Math.floor(elapsedMs / TIME_STAGE_INTERVAL_MS));
+      if (newStage !== timeStage) {
+        timeStage = newStage;
+        recalcDropInterval();
+        elapsedStatEl.classList.remove('pulse');
+        void elapsedStatEl.offsetWidth;
+        elapsedStatEl.classList.add('pulse');
+      }
+      updateElapsedDisplay();
+
       if (dropTimer > dropInterval) {
         drop();
         dropTimer = 0;
@@ -579,25 +771,35 @@
     score = 0;
     lines = 0;
     level = 1;
-    dropInterval = 1000;
+    elapsedMs = 0;
+    timeStage = 0;
+    lastDisplayedSecond = -1;
     dropTimer = 0;
     lastTime = 0;
     running = true;
     gameOver = false;
     paused = false;
+    recalcDropInterval();
     overlay.classList.remove('show');
     pauseBtn.textContent = '一時停止';
     updateStats();
+    updateElapsedDisplay();
     next = newPiece(randomType());
     spawnPiece();
     resizeBoard();
     requestAnimationFrame(loop);
+    if (bgmEnabled && audioUnlocked) startBGM();
   }
 
   function togglePause() {
     if (gameOver) return;
     paused = !paused;
     pauseBtn.textContent = paused ? '再開' : '一時停止';
+    if (paused) {
+      stopBGM();
+    } else if (bgmEnabled && audioUnlocked) {
+      startBGM();
+    }
   }
 
   document.addEventListener('keydown', (e) => {
