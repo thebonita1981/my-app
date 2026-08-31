@@ -3,32 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#ff8fab">
-<title>ひらがなスタンプらりー</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&display=swap" rel="stylesheet">
+<title>テトリス風パズルゲーム</title>
 <style>
   :root {
-    color-scheme: light;
-    --bg: #fff6ec;
-    --panel: #ffffff;
-    --ink: #6b4a3a;
-    --ink-soft: #a98a76;
-    --pink: #ff8fab;
-    --pink-dark: #ff5f88;
-    --blue: #7fd8f2;
-    --blue-dark: #45b8de;
-    --yellow: #ffcf5c;
-    --green: #7bd996;
-    --green-dark: #4cb96e;
-    --red: #ff6b6b;
-    --stamp-red: #d1453c;
+    color-scheme: dark;
+    --bg: #12141c;
+    --panel: #1c1f2b;
+    --border: #333750;
+    --text: #e8e8f0;
+    --accent: #6c8cff;
     --app-height: 100vh;
-    --radius-lg: 26px;
-    --radius-md: 18px;
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  * { box-sizing: border-box; }
   html, body {
     height: 100%;
     margin: 0;
@@ -37,1002 +23,862 @@
   }
   body {
     background: var(--bg);
-    color: var(--ink);
-    font-family: "Kosugi Maru", "Rounded Mplus 1c", "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    color: var(--text);
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
     user-select: none;
     -webkit-user-select: none;
-  }
-  button {
-    font-family: inherit;
-    cursor: pointer;
+    touch-action: none;
   }
   #app {
-    position: relative;
     height: var(--app-height);
     width: 100%;
     max-width: 480px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: env(safe-area-inset-top, 6px) env(safe-area-inset-right, 6px)
+             env(safe-area-inset-bottom, 6px) env(safe-area-inset-left, 6px);
+    gap: 6px;
     overflow: hidden;
-    background:
-      radial-gradient(circle at 12% 8%, #ffe4c9 0%, transparent 45%),
-      radial-gradient(circle at 88% 92%, #cdeeff 0%, transparent 40%),
-      var(--bg);
-    padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0)
-             env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
   }
-  .screen {
+  h1 {
+    font-size: clamp(0.85rem, 3.6vw, 1.1rem);
+    margin: 0;
+    letter-spacing: 0.04em;
+    flex: 0 0 auto;
+    text-align: center;
+  }
+  #stats-bar {
+    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+  }
+  .stat {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 4px;
+    text-align: center;
+    min-width: 0;
+  }
+  .stat h2 {
+    font-size: 0.62rem;
+    margin: 0;
+    color: #9aa2c0;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .stat .value {
+    font-size: clamp(0.85rem, 3.6vw, 1.1rem);
+    font-weight: bold;
+    color: var(--accent);
+    line-height: 1.3;
+  }
+  .stat.pulse .value {
+    animation: pulse-flash 0.6s ease;
+  }
+  @keyframes pulse-flash {
+    0% { color: #ff9c4d; transform: scale(1.25); }
+    100% { color: var(--accent); transform: scale(1); }
+  }
+  #toolbar {
+    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  #next-stat {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  #next-canvas {
+    background: #000;
+    border-radius: 4px;
+    display: block;
+  }
+  #pause-btn, #bgm-btn {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+    background: #3a3f5a;
+    border-radius: 6px;
+    border: none;
+    color: var(--text);
+    min-width: 40px;
+  }
+  #bgm-btn[aria-pressed="false"] {
+    opacity: 0.55;
+  }
+  #board-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  canvas#board {
+    background: #000;
+    border: 3px solid var(--border);
+    border-radius: 6px;
+    display: block;
+  }
+  #overlay {
     position: absolute;
     inset: 0;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
     display: none;
     flex-direction: column;
-    height: 100%;
-    width: 100%;
-    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0));
-    overflow: hidden;
-  }
-  .screen.active { display: flex; }
-
-  /* ---------- Home screen ---------- */
-  #screen-home .title {
-    text-align: center;
-    flex: 0 0 auto;
-    margin: 6px 0 4px;
-  }
-  #screen-home h1 {
-    margin: 0;
-    font-size: clamp(1.2rem, 6vw, 1.5rem);
-    color: var(--pink-dark);
-    text-shadow: 1px 1px 0 #fff, 2px 2px 0 rgba(255,143,171,0.25);
-  }
-  #screen-home .subtitle {
-    margin: 4px 0 0;
-    font-size: 0.78rem;
-    color: var(--ink-soft);
-  }
-  #stamp-count {
-    flex: 0 0 auto;
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--ink-soft);
-    margin-bottom: 6px;
-  }
-  #stamp-count b { color: var(--pink-dark); font-size: 1rem; }
-  #home-grid {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    align-items: center;
+    justify-content: center;
     gap: 10px;
-    padding: 4px 2px 12px;
-  }
-  .row-card {
-    position: relative;
-    background: var(--panel);
-    border: none;
-    border-radius: var(--radius-lg);
-    padding: 12px 8px 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    box-shadow: 0 3px 0 #f0d9c3, 0 6px 12px rgba(180,140,100,0.15);
-    transition: transform 0.12s ease;
-  }
-  .row-card:active { transform: scale(0.95) translateY(2px); }
-  .row-card .row-name {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--ink);
-  }
-  .row-card .row-preview {
-    font-size: 0.78rem;
-    color: var(--ink-soft);
-    letter-spacing: 0.05em;
-  }
-  .row-card .stamp-slot {
-    width: 56px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 2px;
-  }
-  .stamp-mark {
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
-    border: 3px solid var(--stamp-red);
-    color: var(--stamp-red);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    font-size: 0.68rem;
-    font-weight: 700;
-    line-height: 1.05;
-    transform: rotate(-9deg);
-    box-shadow: inset 0 0 0 2px rgba(209,69,60,0.35);
-    background: rgba(209,69,60,0.05);
-  }
-  .stamp-mark .stamp-char { font-size: 1.15rem; }
-  .stamp-slot.empty .stamp-mark {
-    border-color: #e6d7c8;
-    color: #e6d7c8;
-    background: transparent;
-    box-shadow: none;
-  }
-  .row-card.done { box-shadow: 0 3px 0 #ffd9a8, 0 6px 14px rgba(255,143,80,0.22); }
-
-  /* ---------- Play screen ---------- */
-  #screen-play { padding-top: calc(10px + env(safe-area-inset-top, 0)); }
-  .play-topbar {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .icon-btn {
-    flex: 0 0 auto;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: none;
-    background: var(--panel);
-    box-shadow: 0 2px 0 #eadcc9;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .icon-btn:active { transform: scale(0.9); }
-  .play-topbar .row-title {
-    flex: 1 1 auto;
+    border-radius: 4px;
     text-align: center;
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--pink-dark);
+    padding: 16px;
   }
-  #progress-dots {
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; font-size: 1.1rem; }
+  #overlay p { margin: 0; font-size: 0.9rem; color: #ccc; }
+  button {
+    font-size: 0.95rem;
+    padding: 9px 18px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+  }
+  button:active { filter: brightness(0.85); }
+  /* Touch controls */
+  #touch-controls {
     flex: 0 0 auto;
+    width: 100%;
+    max-width: 320px;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     gap: 6px;
-    margin: 8px 0 2px;
   }
-  .dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #f0dfcb;
-    transition: background 0.2s, transform 0.2s;
-  }
-  .dot.current { background: var(--blue); transform: scale(1.25); }
-  .dot.mastered { background: var(--green-dark); }
-
-  #mode-tabs {
-    flex: 0 0 auto;
+  .touch-row {
     display: flex;
     gap: 8px;
-    margin: 10px 0 4px;
-    background: #f4e6d6;
-    padding: 4px;
-    border-radius: 999px;
+    justify-content: center;
+    width: 100%;
   }
-  #mode-tabs button {
+  .tbtn {
     flex: 1;
-    border: none;
-    background: transparent;
-    padding: 8px 4px;
-    border-radius: 999px;
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--ink-soft);
-  }
-  #mode-tabs button.active {
-    background: var(--panel);
-    color: var(--pink-dark);
-    box-shadow: 0 2px 0 rgba(180,140,100,0.15);
-  }
-
-  #question-area {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    position: relative;
-  }
-  #question-card {
-    position: relative;
-    width: min(56vw, 220px);
-    height: min(56vw, 220px);
-    background: var(--panel);
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 5px 0 #f0d9c3, 0 10px 20px rgba(180,140,100,0.18);
-  }
-  #question-char {
-    font-size: min(24vw, 96px);
-    color: var(--ink);
-    font-weight: 700;
-  }
-  #question-card.shake { animation: cardShake 0.45s ease; }
-  #question-card.correct { animation: cardPop 0.5s ease; }
-  @keyframes cardShake {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-10px) rotate(-2deg); }
-    40% { transform: translateX(9px) rotate(2deg); }
-    60% { transform: translateX(-7px) rotate(-1.5deg); }
-    80% { transform: translateX(5px) rotate(1deg); }
-  }
-  @keyframes cardPop {
-    0% { transform: scale(1); }
-    35% { transform: scale(1.14); }
-    60% { transform: scale(0.96); }
-    100% { transform: scale(1); }
-  }
-  #replay-btn {
-    border: none;
-    background: var(--blue);
-    color: #fff;
-    font-size: 0.85rem;
-    font-weight: 700;
-    padding: 7px 16px;
-    border-radius: 999px;
-    box-shadow: 0 3px 0 var(--blue-dark);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  #replay-btn:active { transform: translateY(2px); box-shadow: none; }
-
-  #feedback-badge {
-    position: absolute;
-    top: -6px;
-    left: 50%;
-    transform: translate(-50%, -14px) scale(0.7);
-    padding: 6px 18px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 1rem;
-    color: #fff;
-    opacity: 0;
-    pointer-events: none;
-    white-space: nowrap;
-    z-index: 5;
-  }
-  #feedback-badge.show {
-    animation: badgePop 0.9s ease forwards;
-  }
-  #feedback-badge.ok { background: var(--green-dark); }
-  #feedback-badge.ng { background: var(--red); }
-  @keyframes badgePop {
-    0% { opacity: 0; transform: translate(-50%, 4px) scale(0.6); }
-    18% { opacity: 1; transform: translate(-50%, -22px) scale(1.08); }
-    30% { transform: translate(-50%, -18px) scale(1); }
-    80% { opacity: 1; }
-    100% { opacity: 0; transform: translate(-50%, -30px) scale(0.9); }
-  }
-
-  #choose-panel {
-    flex: 0 0 auto;
-    width: 100%;
-    max-width: 340px;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin: 6px auto 4px;
-    padding-bottom: 6px;
-  }
-  .choice-btn {
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--panel);
-    padding: 14px 6px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--ink);
-    box-shadow: 0 3px 0 #e8d8c4;
-  }
-  .choice-btn:active { transform: translateY(2px); box-shadow: none; }
-  .choice-btn.correct { background: var(--green); color: #1c5a34; box-shadow: 0 3px 0 var(--green-dark); }
-  .choice-btn.wrong { background: #ffd3d3; color: #a12f2f; box-shadow: 0 3px 0 var(--red); }
-  .choice-btn[disabled] { pointer-events: none; }
-
-  #speak-panel {
-    flex: 0 0 auto;
-    width: 100%;
-    max-width: 340px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    margin: 6px auto 4px;
-    padding-bottom: 6px;
-  }
-  #mic-btn {
-    width: 84px;
-    height: 84px;
-    border-radius: 50%;
-    border: none;
-    background: var(--pink);
-    color: #fff;
-    font-size: 2rem;
-    box-shadow: 0 4px 0 var(--pink-dark);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  #mic-btn:active { transform: translateY(3px); box-shadow: none; }
-  #mic-btn.listening {
-    animation: micPulse 1s ease-in-out infinite;
-    background: var(--blue);
-    box-shadow: 0 4px 0 var(--blue-dark);
-  }
-  @keyframes micPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.12); }
-  }
-  #speak-status {
-    font-size: 0.85rem;
-    color: var(--ink-soft);
-    min-height: 1.2em;
-    text-align: center;
-  }
-  #speak-heard {
-    font-size: 0.8rem;
-    color: var(--ink-soft);
-    min-height: 1.1em;
-  }
-
-  /* ---------- Clear screen ---------- */
-  #screen-clear {
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    position: relative;
-  }
-  #clear-stamp-wrap {
-    width: 160px;
-    height: 160px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 18px;
-  }
-  #clear-stamp {
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    border: 6px solid var(--stamp-red);
-    color: var(--stamp-red);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    box-shadow: inset 0 0 0 4px rgba(209,69,60,0.35);
-    background: rgba(209,69,60,0.06);
-    opacity: 0;
-    transform: scale(2.4) rotate(-25deg);
-  }
-  #clear-stamp.slam { animation: stampSlam 0.6s cubic-bezier(.2,1.4,.4,1) forwards; }
-  @keyframes stampSlam {
-    0% { opacity: 0; transform: scale(2.6) rotate(-25deg); }
-    55% { opacity: 1; transform: scale(0.92) rotate(-9deg); }
-    75% { transform: scale(1.06) rotate(-11deg); }
-    100% { opacity: 1; transform: scale(1) rotate(-9deg); }
-  }
-  #clear-stamp .char { font-size: 2.6rem; font-weight: 700; }
-  #clear-stamp .label { font-size: 0.85rem; font-weight: 700; margin-top: 2px; }
-  #clear-title {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--pink-dark);
-    margin: 4px 0;
-  }
-  #clear-sub {
-    font-size: 0.9rem;
-    color: var(--ink-soft);
-    margin-bottom: 22px;
-  }
-  .clear-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 220px;
-  }
-  .big-btn {
-    border: none;
-    border-radius: 999px;
-    padding: 13px 10px;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #fff;
-  }
-  #clear-next-btn { background: var(--pink); box-shadow: 0 4px 0 var(--pink-dark); }
-  #clear-home-btn { background: var(--blue); box-shadow: 0 4px 0 var(--blue-dark); }
-  .big-btn:active { transform: translateY(3px); box-shadow: none; }
-
-  .confetti {
-    position: absolute;
-    top: -20px;
+    max-width: 76px;
+    height: clamp(38px, 9vh, 54px);
     font-size: 1.3rem;
-    animation: confettiFall linear forwards;
-    pointer-events: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  @keyframes confettiFall {
-    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(120vh) rotate(360deg); opacity: 0.2; }
+  .tbtn:active { background: var(--accent); }
+  @media (pointer: fine) and (min-width: 640px) {
+    #touch-controls { display: none; }
+  }
+  .controls-hint {
+    display: none;
+    font-size: 0.72rem;
+    color: #888fb0;
+    text-align: center;
+    flex: 0 0 auto;
+  }
+  @media (pointer: fine) and (min-width: 640px) {
+    .controls-hint { display: block; }
   }
 </style>
 </head>
 <body>
 
 <div id="app">
+  <h1>テトリス風パズルゲーム</h1>
 
-  <!-- ================= HOME ================= -->
-  <div class="screen active" id="screen-home">
-    <div class="title">
-      <h1>ひらがな スタンプらりー</h1>
-      <p class="subtitle">タップしてれんしゅうしよう！</p>
+  <div id="stats-bar">
+    <div class="stat">
+      <h2>スコア</h2>
+      <div class="value" id="score">0</div>
     </div>
-    <div id="stamp-count">あつめたスタンプ: <b id="stamp-count-num">0</b> / 10</div>
-    <div id="home-grid"></div>
-  </div>
-
-  <!-- ================= PLAY ================= -->
-  <div class="screen" id="screen-play">
-    <div class="play-topbar">
-      <button class="icon-btn" id="back-btn" title="もどる">←</button>
-      <div class="row-title" id="play-row-title">あ行</div>
-      <button class="icon-btn" id="tts-toggle-btn" title="よみあげ オン/オフ">🔊</button>
+    <div class="stat">
+      <h2>ライン</h2>
+      <div class="value" id="lines">0</div>
     </div>
-
-    <div id="progress-dots"></div>
-
-    <div id="mode-tabs">
-      <button id="tab-choose" class="active">えらぶ</button>
-      <button id="tab-speak">はなす</button>
+    <div class="stat">
+      <h2>レベル</h2>
+      <div class="value" id="level">1</div>
     </div>
-
-    <div id="question-area">
-      <div id="question-card">
-        <div id="feedback-badge"></div>
-        <div id="question-char">あ</div>
-      </div>
-      <button id="replay-btn">🔊 もういちど きく</button>
-
-      <div id="choose-panel"></div>
-
-      <div id="speak-panel" style="display:none;">
-        <button id="mic-btn">🎤</button>
-        <div id="speak-status">マイクをタップして はなしてね</div>
-        <div id="speak-heard">&nbsp;</div>
-      </div>
+    <div class="stat" id="elapsed-stat">
+      <h2>経過時間</h2>
+      <div class="value" id="elapsed">0:00</div>
     </div>
   </div>
 
-  <!-- ================= CLEAR ================= -->
-  <div class="screen" id="screen-clear">
-    <div id="clear-stamp-wrap">
-      <div id="clear-stamp">
-        <div class="char" id="clear-stamp-char">あ</div>
-        <div class="label">できた!</div>
-      </div>
+  <div id="toolbar">
+    <div id="next-stat">
+      <canvas id="next-canvas" width="40" height="40"></canvas>
     </div>
-    <div id="clear-title">「あ行」クリア！</div>
-    <div id="clear-sub">スタンプが たまったよ</div>
-    <div class="clear-buttons">
-      <button class="big-btn" id="clear-next-btn">つぎの行へ →</button>
-      <button class="big-btn" id="clear-home-btn">スタンプ帳へ もどる</button>
+    <button id="bgm-btn" aria-pressed="true" title="BGMのオン/オフ">🔊 BGM</button>
+    <button id="pause-btn">一時停止</button>
+  </div>
+
+  <div id="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="overlay">
+      <h2 id="overlay-title">ゲームオーバー</h2>
+      <p id="overlay-text">スコア: 0</p>
+      <button id="retry-btn">もう一度プレイ</button>
     </div>
   </div>
 
+  <div class="controls-hint">
+    ← → : 移動　↓ : ソフトドロップ　↑ / Space : 回転
+  </div>
+
+  <div id="touch-controls">
+    <div class="touch-row">
+      <button class="tbtn" id="btn-rotate">⟳</button>
+    </div>
+    <div class="touch-row">
+      <button class="tbtn" id="btn-left">◀</button>
+      <button class="tbtn" id="btn-down">▼</button>
+      <button class="tbtn" id="btn-right">▶</button>
+    </div>
+  </div>
 </div>
 
 <script>
 (function () {
-  "use strict";
+  const COLS = 12;
+  const ROWS = 24;
+  let CELL = 20;
 
-  // ---------------------------------------------------------------
-  // Data: 10 rows x basic 46 hiragana (no dakuten / youon)
-  // ---------------------------------------------------------------
-  const GROUPS = [
-    { id: 'a',  name: 'あ行', chars: [['あ','a'],['い','i'],['う','u'],['え','e'],['お','o']] },
-    { id: 'ka', name: 'か行', chars: [['か','ka'],['き','ki'],['く','ku'],['け','ke'],['こ','ko']] },
-    { id: 'sa', name: 'さ行', chars: [['さ','sa'],['し','shi'],['す','su'],['せ','se'],['そ','so']] },
-    { id: 'ta', name: 'た行', chars: [['た','ta'],['ち','chi'],['つ','tsu'],['て','te'],['と','to']] },
-    { id: 'na', name: 'な行', chars: [['な','na'],['に','ni'],['ぬ','nu'],['ね','ne'],['の','no']] },
-    { id: 'ha', name: 'は行', chars: [['は','ha'],['ひ','hi'],['ふ','fu'],['へ','he'],['ほ','ho']] },
-    { id: 'ma', name: 'ま行', chars: [['ま','ma'],['み','mi'],['む','mu'],['め','me'],['も','mo']] },
-    { id: 'ya', name: 'や行', chars: [['や','ya'],['ゆ','yu'],['よ','yo']] },
-    { id: 'ra', name: 'ら行', chars: [['ら','ra'],['り','ri'],['る','ru'],['れ','re'],['ろ','ro']] },
-    { id: 'wa', name: 'わ行', chars: [['わ','wa'],['を','wo'],['ん','n']] },
+  const appEl = document.getElementById('app');
+  const boardWrap = document.getElementById('board-wrap');
+  const boardCanvas = document.getElementById('board');
+  const ctx = boardCanvas.getContext('2d');
+
+  const nextCanvas = document.getElementById('next-canvas');
+  const nctx = nextCanvas.getContext('2d');
+
+  const scoreEl = document.getElementById('score');
+  const linesEl = document.getElementById('lines');
+  const levelEl = document.getElementById('level');
+  const elapsedEl = document.getElementById('elapsed');
+  const elapsedStatEl = document.getElementById('elapsed-stat');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const retryBtn = document.getElementById('retry-btn');
+  const pauseBtn = document.getElementById('pause-btn');
+  const bgmBtn = document.getElementById('bgm-btn');
+
+  const COLORS = {
+    I: '#4dd9ff',
+    O: '#ffe14d',
+    T: '#c04dff',
+    S: '#4dff88',
+    Z: '#ff4d5e',
+    J: '#4d6bff',
+    L: '#ff9c4d'
+  };
+
+  const SHAPES = {
+    I: [
+      [0,0,0,0],
+      [1,1,1,1],
+      [0,0,0,0],
+      [0,0,0,0]
+    ],
+    O: [
+      [1,1],
+      [1,1]
+    ],
+    T: [
+      [0,1,0],
+      [1,1,1],
+      [0,0,0]
+    ],
+    S: [
+      [0,1,1],
+      [1,1,0],
+      [0,0,0]
+    ],
+    Z: [
+      [1,1,0],
+      [0,1,1],
+      [0,0,0]
+    ],
+    J: [
+      [1,0,0],
+      [1,1,1],
+      [0,0,0]
+    ],
+    L: [
+      [0,0,1],
+      [1,1,1],
+      [0,0,0]
+    ]
+  };
+
+  const TYPES = Object.keys(SHAPES);
+
+  let board, current, next, score, lines, level, dropInterval, dropTimer,
+      lastTime, running, gameOver, paused;
+
+  // ---- BGM (Web Audio API synth, no external audio files) ----
+  // An original 16-step chiptune-style loop (simple arpeggio + bass pulse).
+  // Playing sound through Web Audio (not an <audio>/<video> element) means
+  // it is silenced by the device's mute/silent switch, as requested.
+  const BGM_TEMPO = 132;
+  const SIXTEENTH = 60 / BGM_TEMPO / 4;
+  const LEAD_PATTERN = [
+    440, 523.25, 659.25, 523.25, 392, 493.88, 587.33, 493.88,
+    349.23, 440, 523.25, 440, 392, 466.16, 554.37, 466.16
   ];
-  const ALL_ROMAJI = GROUPS.flatMap(g => g.chars.map(c => c[1]));
+  const BASS_PATTERN = [
+    220, null, null, null, 174.61, null, null, null,
+    130.81, null, null, null, 196, null, null, null
+  ];
 
-  const STORAGE_KEY = 'hiragana_stamp_progress_v1';
-  const TTS_PREF_KEY = 'hiragana_tts_enabled_v1';
-
-  function loadProgress() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* ignore */ }
-    return { completed: [] };
-  }
-  function saveProgress() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)); } catch (e) { /* ignore */ }
-  }
-  let progress = loadProgress();
-
-  let ttsEnabled = true;
-  try {
-    const saved = localStorage.getItem(TTS_PREF_KEY);
-    if (saved !== null) ttsEnabled = saved === '1';
-  } catch (e) { /* ignore */ }
-
-  // ---------------------------------------------------------------
-  // Audio: sound effects (Web Audio) + speech synthesis (TTS)
-  // ---------------------------------------------------------------
   let audioCtx = null;
+  let masterGain = null;
+  let bgmEnabled = true;
+  try {
+    const saved = localStorage.getItem('tetris_bgm_enabled');
+    if (saved !== null) bgmEnabled = saved === '1';
+  } catch (e) { /* localStorage unavailable */ }
+  let audioUnlocked = false;
+  let bgmPlaying = false;
+  let bgmIntervalId = null;
+  let bgmStepIndex = 0;
+  let bgmNextNoteTime = 0;
+  const BGM_SCHEDULE_AHEAD = 0.12;
+
   function ensureAudioContext() {
     if (audioCtx) return;
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return;
     audioCtx = new Ctx();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.22;
+    masterGain.connect(audioCtx.destination);
   }
-  function unlockAudio() {
-    ensureAudioContext();
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-  }
-  ['pointerdown', 'touchstart', 'keydown'].forEach(evt => {
-    document.addEventListener(evt, unlockAudio, { once: true, passive: true });
-  });
 
-  function tone(freq, start, dur, type, peak) {
-    if (!audioCtx) return;
+  function scheduleNote(freq, startTime, duration, type, peakGain) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = type;
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.linearRampToValueAtTime(peak, start + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start(start);
-    osc.stop(start + dur + 0.02);
-  }
-  function playCorrectSound() {
-    if (!audioCtx) return;
-    const t = audioCtx.currentTime;
-    tone(523.25, t, 0.16, 'sine', 0.18);
-    tone(659.25, t + 0.1, 0.16, 'sine', 0.18);
-    tone(784.0, t + 0.2, 0.24, 'sine', 0.2);
-  }
-  function playWrongSound() {
-    if (!audioCtx) return;
-    const t = audioCtx.currentTime;
-    tone(300, t, 0.18, 'square', 0.12);
-    tone(190, t + 0.12, 0.22, 'square', 0.12);
-  }
-  function playStampSound() {
-    if (!audioCtx) return;
-    const t = audioCtx.currentTime;
-    tone(90, t, 0.18, 'sine', 0.3);
-    tone(523.25, t + 0.08, 0.14, 'sine', 0.15);
-    tone(659.25, t + 0.18, 0.14, 'sine', 0.15);
-    tone(784.0, t + 0.28, 0.16, 'sine', 0.16);
-    tone(1046.5, t + 0.4, 0.28, 'sine', 0.18);
+    gain.connect(masterGain);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.02);
   }
 
-  let jaVoice = null;
-  function pickVoice() {
-    if (!window.speechSynthesis) return;
-    const voices = speechSynthesis.getVoices();
-    jaVoice = voices.find(v => v.lang === 'ja-JP' && /google/i.test(v.name))
-      || voices.find(v => v.lang === 'ja-JP')
-      || voices.find(v => v.lang && v.lang.startsWith('ja'))
-      || null;
-  }
-  if (window.speechSynthesis) {
-    pickVoice();
-    speechSynthesis.onvoiceschanged = pickVoice;
-  }
-  function speakChar(char) {
-    if (!window.speechSynthesis) return;
-    try {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(char);
-      u.lang = 'ja-JP';
-      u.rate = 0.8;
-      u.pitch = 1.1;
-      if (jaVoice) u.voice = jaVoice;
-      speechSynthesis.speak(u);
-    } catch (e) { /* ignore */ }
+  function bgmScheduler() {
+    if (!audioCtx) return;
+    while (bgmNextNoteTime < audioCtx.currentTime + BGM_SCHEDULE_AHEAD) {
+      const step = bgmStepIndex % 16;
+      const leadFreq = LEAD_PATTERN[step];
+      if (leadFreq) {
+        scheduleNote(leadFreq, bgmNextNoteTime, SIXTEENTH * 0.85, 'square', 0.05);
+      }
+      const bassFreq = BASS_PATTERN[step];
+      if (bassFreq) {
+        scheduleNote(bassFreq, bgmNextNoteTime, SIXTEENTH * 3.6, 'triangle', 0.06);
+      }
+      bgmNextNoteTime += SIXTEENTH;
+      bgmStepIndex++;
+    }
   }
 
-  // ---------------------------------------------------------------
-  // Speech recognition support / helpers ("はなす" mode)
-  // ---------------------------------------------------------------
-  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
-  const speakModeSupported = !!SpeechRecognitionCtor;
+  function startBGM() {
+    if (!bgmEnabled || !audioUnlocked) return;
+    ensureAudioContext();
+    if (!audioCtx || bgmPlaying) return;
+    bgmPlaying = true;
+    bgmStepIndex = 0;
+    bgmNextNoteTime = audioCtx.currentTime + 0.05;
+    bgmScheduler();
+    bgmIntervalId = setInterval(bgmScheduler, 50);
+  }
 
-  function kataToHira(str) {
-    return str.replace(/[ァ-ヶ]/g, ch =>
-      String.fromCharCode(ch.charCodeAt(0) - 0x60)
+  function stopBGM() {
+    bgmPlaying = false;
+    if (bgmIntervalId) {
+      clearInterval(bgmIntervalId);
+      bgmIntervalId = null;
+    }
+  }
+
+  function refreshBgmButton() {
+    bgmBtn.textContent = bgmEnabled ? '🔊 BGM' : '🔇 BGM';
+    bgmBtn.setAttribute('aria-pressed', String(bgmEnabled));
+  }
+
+  function setBgmEnabled(enabled) {
+    bgmEnabled = enabled;
+    refreshBgmButton();
+    try { localStorage.setItem('tetris_bgm_enabled', enabled ? '1' : '0'); } catch (e) { /* ignore */ }
+    if (enabled) {
+      if (running && !paused && !gameOver) startBGM();
+    } else {
+      stopBGM();
+    }
+  }
+
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    ensureAudioContext();
+    if (!audioCtx) return;
+    audioCtx.resume().then(() => {
+      if (bgmEnabled && running && !paused && !gameOver) startBGM();
+    }).catch(() => {});
+  }
+
+  ['pointerdown', 'keydown', 'touchstart'].forEach((evt) => {
+    document.addEventListener(evt, unlockAudio, { once: true, passive: true });
+  });
+
+  bgmBtn.addEventListener('click', () => setBgmEnabled(!bgmEnabled));
+  refreshBgmButton();
+
+  // ---- Time-based difficulty ----
+  const TIME_STAGE_INTERVAL_MS = 120000; // every 2 minutes
+  const TIME_STAGE_STEP_MS = 45;
+  const MAX_TIME_STAGES = 14;
+  let elapsedMs = 0;
+  let timeStage = 0;
+  let lastDisplayedSecond = -1;
+
+  function recalcDropInterval() {
+    dropInterval = Math.max(
+      110,
+      1000 - (level - 1) * 60 - timeStage * TIME_STAGE_STEP_MS
     );
   }
-  function normalizeSpeech(str) {
-    return kataToHira(str)
-      .replace(/[\s。、！？!?・~〜ー\.,]/g, '')
-      .trim();
-  }
-  function isSpeechCorrect(transcript, targetChar) {
-    const norm = normalizeSpeech(transcript);
-    if (!norm) return false;
-    if (norm === targetChar) return true;
-    if (norm.includes(targetChar)) return true;
-    return false;
+
+  function updateElapsedDisplay() {
+    const totalSeconds = Math.floor(elapsedMs / 1000);
+    if (totalSeconds === lastDisplayedSecond) return;
+    lastDisplayedSecond = totalSeconds;
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    elapsedEl.textContent = m + ':' + String(s).padStart(2, '0');
   }
 
-  // ---------------------------------------------------------------
-  // DOM refs
-  // ---------------------------------------------------------------
-  const screens = {
-    home: document.getElementById('screen-home'),
-    play: document.getElementById('screen-play'),
-    clear: document.getElementById('screen-clear'),
-  };
-  function showScreen(name) {
-    Object.values(screens).forEach(s => s.classList.remove('active'));
-    screens[name].classList.add('active');
-  }
-
-  const homeGrid = document.getElementById('home-grid');
-  const stampCountNum = document.getElementById('stamp-count-num');
-
-  const backBtn = document.getElementById('back-btn');
-  const ttsToggleBtn = document.getElementById('tts-toggle-btn');
-  const playRowTitle = document.getElementById('play-row-title');
-  const progressDotsEl = document.getElementById('progress-dots');
-  const tabChoose = document.getElementById('tab-choose');
-  const tabSpeak = document.getElementById('tab-speak');
-  const questionCard = document.getElementById('question-card');
-  const questionChar = document.getElementById('question-char');
-  const feedbackBadge = document.getElementById('feedback-badge');
-  const replayBtn = document.getElementById('replay-btn');
-  const choosePanel = document.getElementById('choose-panel');
-  const speakPanel = document.getElementById('speak-panel');
-  const micBtn = document.getElementById('mic-btn');
-  const speakStatus = document.getElementById('speak-status');
-  const speakHeard = document.getElementById('speak-heard');
-
-  const clearStamp = document.getElementById('clear-stamp');
-  const clearStampChar = document.getElementById('clear-stamp-char');
-  const clearTitle = document.getElementById('clear-title');
-  const clearNextBtn = document.getElementById('clear-next-btn');
-  const clearHomeBtn = document.getElementById('clear-home-btn');
-
-  if (!speakModeSupported) {
-    tabSpeak.style.display = 'none';
-  }
-
-  // ---------------------------------------------------------------
-  // Home screen rendering
-  // ---------------------------------------------------------------
-  function renderHome() {
-    homeGrid.innerHTML = '';
-    let doneCount = 0;
-    GROUPS.forEach(group => {
-      const done = progress.completed.includes(group.id);
-      if (done) doneCount++;
-      const card = document.createElement('button');
-      card.className = 'row-card' + (done ? ' done' : '');
-      card.setAttribute('data-row-id', group.id);
-      card.innerHTML = `
-        <div class="row-name">${group.name}</div>
-        <div class="row-preview">${group.chars.map(c => c[0]).join('')}</div>
-        <div class="stamp-slot ${done ? '' : 'empty'}">
-          <div class="stamp-mark">
-            <div class="stamp-char">${group.chars[0][0]}</div>
-            <div>できた</div>
-          </div>
-        </div>
-      `;
-      card.addEventListener('click', () => startRow(group.id));
-      homeGrid.appendChild(card);
-    });
-    stampCountNum.textContent = doneCount;
-  }
-
-  // ---------------------------------------------------------------
-  // Play state
-  // ---------------------------------------------------------------
-  let currentGroup = null;
-  let mastered = [];
-  let queue = [];
-  let currentCharIdx = null;
-  let mode = 'choose'; // 'choose' | 'speak'
-  let busy = false; // guards input while feedback animation plays
-  let recognizer = null;
-
-  function shuffle(arr) {
-    const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
-  function startRow(rowId) {
-    currentGroup = GROUPS.find(g => g.id === rowId);
-    mastered = currentGroup.chars.map(() => false);
-    queue = shuffle(currentGroup.chars.map((_, i) => i));
-    playRowTitle.textContent = currentGroup.name;
-    setMode(speakModeSupported ? mode : 'choose');
-    renderDots();
-    showScreen('play');
-    nextQuestion();
-  }
-
-  function renderDots() {
-    progressDotsEl.innerHTML = '';
-    currentGroup.chars.forEach((_, i) => {
-      const dot = document.createElement('div');
-      dot.className = 'dot' + (mastered[i] ? ' mastered' : (i === currentCharIdx ? ' current' : ''));
-      progressDotsEl.appendChild(dot);
-    });
-  }
-
-  function setMode(newMode) {
-    mode = newMode;
-    tabChoose.classList.toggle('active', mode === 'choose');
-    tabSpeak.classList.toggle('active', mode === 'speak');
-    choosePanel.style.display = mode === 'choose' ? 'grid' : 'none';
-    speakPanel.style.display = mode === 'speak' ? 'flex' : 'none';
-    if (mode === 'speak') {
-      speakStatus.textContent = 'マイクをタップして はなしてね';
-      speakHeard.textContent = ' ';
-    }
-  }
-  tabChoose.addEventListener('click', () => { if (!busy) setMode('choose'); });
-  tabSpeak.addEventListener('click', () => { if (!busy && speakModeSupported) setMode('speak'); });
-
-  function nextQuestion() {
-    if (queue.length === 0) {
-      finishRow();
-      return;
-    }
-    currentCharIdx = queue.shift();
-    renderDots();
-    const [char] = currentGroup.chars[currentCharIdx];
-    questionChar.textContent = char;
-    feedbackBadge.className = '';
-    feedbackBadge.textContent = '';
-    questionCard.classList.remove('shake', 'correct');
-    busy = false;
-
-    if (mode === 'choose') renderChoices();
-    speakStatus.textContent = 'マイクをタップして はなしてね';
-    speakHeard.textContent = ' ';
-    micBtn.classList.remove('listening');
-
-    if (ttsEnabled) speakChar(char);
-  }
-
-  function renderChoices() {
-    const [, correctRomaji] = currentGroup.chars[currentCharIdx];
-    const sameRowPool = currentGroup.chars
-      .map(c => c[1])
-      .filter(r => r !== correctRomaji);
-    const globalPool = shuffle(ALL_ROMAJI.filter(r => r !== correctRomaji && !sameRowPool.includes(r)));
-    const distractors = shuffle(sameRowPool).concat(globalPool).slice(0, 3);
-    const options = shuffle([correctRomaji, ...distractors]);
-
-    choosePanel.innerHTML = '';
-    options.forEach(opt => {
-      const btn = document.createElement('button');
-      btn.className = 'choice-btn';
-      btn.textContent = opt;
-      btn.addEventListener('click', () => handleChooseAnswer(opt === correctRomaji, btn, correctRomaji));
-      choosePanel.appendChild(btn);
-    });
-  }
-
-  function handleChooseAnswer(isCorrect, btnEl, correctRomaji) {
-    if (busy) return;
-    busy = true;
-    Array.from(choosePanel.children).forEach(b => b.setAttribute('disabled', 'true'));
-    if (isCorrect) {
-      btnEl.classList.add('correct');
-    } else {
-      btnEl.classList.add('wrong');
-      Array.from(choosePanel.children).forEach(b => {
-        if (b.textContent === correctRomaji) b.classList.add('correct');
-      });
-    }
-    resolveAnswer(isCorrect);
-  }
-
-  function resolveAnswer(isCorrect) {
-    if (isCorrect) {
-      mastered[currentCharIdx] = true;
-      playCorrectSound();
-      questionCard.classList.add('correct');
-      feedbackBadge.className = 'ok show';
-      feedbackBadge.textContent = '◎ せいかい！';
-    } else {
-      const pos = queue.length === 0 ? 0 : Math.min(queue.length, 1 + Math.floor(Math.random() * 2));
-      queue.splice(pos, 0, currentCharIdx);
-      playWrongSound();
-      questionCard.classList.add('shake');
-      feedbackBadge.className = 'ng show';
-      feedbackBadge.textContent = '✕ もういちど！';
-    }
-    renderDots();
-    setTimeout(nextQuestion, isCorrect ? 950 : 1150);
-  }
-
-  replayBtn.addEventListener('click', () => {
-    unlockAudio();
-    const [char] = currentGroup.chars[currentCharIdx];
-    speakChar(char);
-  });
-
-  ttsToggleBtn.addEventListener('click', () => {
-    ttsEnabled = !ttsEnabled;
-    ttsToggleBtn.textContent = ttsEnabled ? '🔊' : '🔇';
-    try { localStorage.setItem(TTS_PREF_KEY, ttsEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
-  });
-  ttsToggleBtn.textContent = ttsEnabled ? '🔊' : '🔇';
-
-  backBtn.addEventListener('click', () => {
-    if (recognizer) { try { recognizer.abort(); } catch (e) { /* ignore */ } }
-    if (window.speechSynthesis) speechSynthesis.cancel();
-    renderHome();
-    showScreen('home');
-  });
-
-  // ---------------- speak mode ----------------
-  micBtn.addEventListener('click', () => {
-    if (busy || !speakModeSupported) return;
-    unlockAudio();
-    startListening();
-  });
-
-  function startListening() {
-    try {
-      recognizer = new SpeechRecognitionCtor();
-    } catch (e) {
-      speakStatus.textContent = 'おんせいにんしきが つかえません';
-      return;
-    }
-    recognizer.lang = 'ja-JP';
-    recognizer.continuous = false;
-    recognizer.interimResults = false;
-    recognizer.maxAlternatives = 3;
-
-    micBtn.classList.add('listening');
-    speakStatus.textContent = '🎙️ きいているよ...';
-    speakHeard.textContent = ' ';
-
-    let handled = false;
-
-    recognizer.onresult = (event) => {
-      handled = true;
-      const results = event.results[0];
-      const [targetChar] = currentGroup.chars[currentCharIdx];
-      let correct = false;
-      let heardText = '';
-      for (let i = 0; i < results.length; i++) {
-        heardText = heardText || results[i].transcript;
-        if (isSpeechCorrect(results[i].transcript, targetChar)) {
-          correct = true;
-          heardText = results[i].transcript;
-          break;
-        }
-      }
-      micBtn.classList.remove('listening');
-      speakStatus.textContent = correct ? 'せいかい！' : 'ちがうみたい...';
-      speakHeard.textContent = 'きこえたよ: ' + (heardText || '？');
-      busy = true;
-      resolveAnswer(correct);
-    };
-
-    recognizer.onerror = (event) => {
-      micBtn.classList.remove('listening');
-      if (handled) return;
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        speakStatus.textContent = 'マイクを ゆるしてね';
-      } else if (event.error === 'no-speech') {
-        speakStatus.textContent = 'きこえなかったよ。もういちど タップしてね';
-      } else {
-        speakStatus.textContent = 'もういちど タップしてね';
-      }
-    };
-
-    recognizer.onend = () => {
-      micBtn.classList.remove('listening');
-      if (!handled) {
-        // no result and no explicit error already handled above
-      }
-    };
-
-    try {
-      recognizer.start();
-    } catch (e) {
-      micBtn.classList.remove('listening');
-      speakStatus.textContent = 'もういちど タップしてね';
-    }
-  }
-
-  // ---------------- row completion ----------------
-  function finishRow() {
-    if (!progress.completed.includes(currentGroup.id)) {
-      progress.completed.push(currentGroup.id);
-      saveProgress();
-    }
-    clearStampChar.textContent = currentGroup.chars[0][0];
-    clearTitle.textContent = `「${currentGroup.name}」クリア！`;
-    clearStamp.classList.remove('slam');
-    void clearStamp.offsetWidth;
-    clearStamp.classList.add('slam');
-
-    const nextIncomplete = GROUPS.find(g => !progress.completed.includes(g.id));
-    clearNextBtn.style.display = nextIncomplete ? 'block' : 'none';
-    clearNextBtn.onclick = () => {
-      if (nextIncomplete) startRow(nextIncomplete.id);
-    };
-
-    spawnConfetti();
-    showScreen('clear');
-    playStampSound();
-  }
-
-  clearHomeBtn.addEventListener('click', () => {
-    renderHome();
-    showScreen('home');
-  });
-
-  function spawnConfetti() {
-    const wrap = screens.clear;
-    document.querySelectorAll('.confetti').forEach(el => el.remove());
-    const emojis = ['🎉', '⭐', '✨', '🌸', '🎊'];
-    for (let i = 0; i < 18; i++) {
-      const span = document.createElement('div');
-      span.className = 'confetti';
-      span.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-      span.style.left = Math.random() * 100 + '%';
-      span.style.animationDuration = (1.6 + Math.random() * 1.2) + 's';
-      span.style.animationDelay = (Math.random() * 0.4) + 's';
-      wrap.appendChild(span);
-      span.addEventListener('animationend', () => span.remove());
-    }
-  }
-
-  // ---------------------------------------------------------------
-  // Layout helpers
-  // ---------------------------------------------------------------
   function setAppHeight() {
     const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     document.documentElement.style.setProperty('--app-height', h + 'px');
   }
-  setAppHeight();
-  window.addEventListener('resize', setAppHeight);
-  window.addEventListener('orientationchange', setAppHeight);
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', setAppHeight);
+
+  function resizeBoard() {
+    const wrapRect = boardWrap.getBoundingClientRect();
+    const availW = Math.max(wrapRect.width, 1);
+    const availH = Math.max(wrapRect.height, 1);
+    const cell = Math.max(6, Math.floor(Math.min(availW / COLS, availH / ROWS)));
+    CELL = cell;
+    boardCanvas.width = COLS * CELL;
+    boardCanvas.height = ROWS * CELL;
+    if (typeof draw === 'function' && board) draw();
   }
 
-  renderHome();
+  function createBoard() {
+    return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  }
+
+  function randomType() {
+    return TYPES[Math.floor(Math.random() * TYPES.length)];
+  }
+
+  function rotateMatrix(matrix) {
+    const n = matrix.length;
+    const result = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        result[x][n - 1 - y] = matrix[y][x];
+      }
+    }
+    return result;
+  }
+
+  function newPiece(type) {
+    const shape = SHAPES[type].map(row => row.slice());
+    return {
+      type,
+      shape,
+      color: COLORS[type],
+      x: Math.floor((COLS - shape.length) / 2),
+      y: -2
+    };
+  }
+
+  function collides(piece, offsetX, offsetY, shape) {
+    const s = shape || piece.shape;
+    for (let y = 0; y < s.length; y++) {
+      for (let x = 0; x < s[y].length; x++) {
+        if (!s[y][x]) continue;
+        const boardX = piece.x + x + offsetX;
+        const boardY = piece.y + y + offsetY;
+        if (boardX < 0 || boardX >= COLS || boardY >= ROWS) return true;
+        if (boardY >= 0 && board[boardY][boardX]) return true;
+      }
+    }
+    return false;
+  }
+
+  function mergePiece() {
+    current.shape.forEach((row, y) => {
+      row.forEach((val, x) => {
+        if (val) {
+          const boardY = current.y + y;
+          const boardX = current.x + x;
+          if (boardY >= 0) board[boardY][boardX] = current.color;
+        }
+      });
+    });
+  }
+
+  function clearLines() {
+    let cleared = 0;
+    for (let y = ROWS - 1; y >= 0; y--) {
+      if (board[y].every(cell => cell)) {
+        board.splice(y, 1);
+        board.unshift(Array(COLS).fill(null));
+        cleared++;
+        y++;
+      }
+    }
+    if (cleared > 0) {
+      const points = [0, 100, 300, 500, 800][cleared] * level;
+      score += points;
+      lines += cleared;
+      level = Math.floor(lines / 10) + 1;
+      recalcDropInterval();
+      updateStats();
+    }
+  }
+
+  function updateStats() {
+    scoreEl.textContent = score;
+    linesEl.textContent = lines;
+    levelEl.textContent = level;
+  }
+
+  function spawnPiece() {
+    current = next;
+    current.x = Math.floor((COLS - current.shape.length) / 2);
+    current.y = -2;
+    next = newPiece(randomType());
+    drawNext();
+    if (collides(current, 0, 0)) {
+      endGame();
+    }
+  }
+
+  function endGame() {
+    gameOver = true;
+    running = false;
+    stopBGM();
+    overlayTitle.textContent = 'ゲームオーバー';
+    overlayText.textContent = 'スコア: ' + score;
+    overlay.classList.add('show');
+  }
+
+  function hardDropDistance() {
+    let d = 0;
+    while (!collides(current, 0, d + 1)) d++;
+    return d;
+  }
+
+  function drop() {
+    if (!collides(current, 0, 1)) {
+      current.y++;
+    } else {
+      mergePiece();
+      clearLines();
+      spawnPiece();
+    }
+  }
+
+  function softDrop() {
+    if (gameOver || paused) return;
+    if (!collides(current, 0, 1)) {
+      current.y++;
+      score += 1;
+      updateStats();
+    } else {
+      mergePiece();
+      clearLines();
+      spawnPiece();
+    }
+    dropTimer = 0;
+  }
+
+  function moveLeft() {
+    if (gameOver || paused) return;
+    if (!collides(current, -1, 0)) current.x--;
+  }
+
+  function moveRight() {
+    if (gameOver || paused) return;
+    if (!collides(current, 1, 0)) current.x++;
+  }
+
+  function rotate() {
+    if (gameOver || paused) return;
+    const rotated = rotateMatrix(current.shape);
+    const kicks = [0, -1, 1, -2, 2];
+    for (const k of kicks) {
+      if (!collides(current, k, 0, rotated)) {
+        current.x += k;
+        current.shape = rotated;
+        return;
+      }
+    }
+  }
+
+  function drawCell(context, x, y, color, size) {
+    context.fillStyle = color;
+    context.fillRect(x * size, y * size, size, size);
+    context.strokeStyle = 'rgba(0,0,0,0.35)';
+    context.lineWidth = 2;
+    context.strokeRect(x * size + 1, y * size + 1, size - 2, size - 2);
+    context.fillStyle = 'rgba(255,255,255,0.15)';
+    context.fillRect(x * size, y * size, size, 3);
+  }
+
+  function draw() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, boardCanvas.width, boardCanvas.height);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    for (let x = 0; x <= COLS; x++) {
+      ctx.beginPath();
+      ctx.moveTo(x * CELL, 0);
+      ctx.lineTo(x * CELL, ROWS * CELL);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= ROWS; y++) {
+      ctx.beginPath();
+      ctx.moveTo(0, y * CELL);
+      ctx.lineTo(COLS * CELL, y * CELL);
+      ctx.stroke();
+    }
+
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if (board[y][x]) drawCell(ctx, x, y, board[y][x], CELL);
+      }
+    }
+
+    if (current) {
+      const ghostY = current.y + hardDropDistance();
+      ctx.globalAlpha = 0.25;
+      current.shape.forEach((row, y) => {
+        row.forEach((val, x) => {
+          if (val && ghostY + y >= 0) {
+            drawCell(ctx, current.x + x, ghostY + y, current.color, CELL);
+          }
+        });
+      });
+      ctx.globalAlpha = 1;
+
+      current.shape.forEach((row, y) => {
+        row.forEach((val, x) => {
+          if (val && current.y + y >= 0) {
+            drawCell(ctx, current.x + x, current.y + y, current.color, CELL);
+          }
+        });
+      });
+    }
+  }
+
+  function drawNext() {
+    nctx.fillStyle = '#000';
+    nctx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+    const size = 9;
+    const shape = next.shape;
+    const offsetX = (nextCanvas.width / size - shape.length) / 2;
+    const offsetY = (nextCanvas.height / size - shape.length) / 2;
+    shape.forEach((row, y) => {
+      row.forEach((val, x) => {
+        if (val) {
+          nctx.save();
+          nctx.translate(offsetX * size, offsetY * size);
+          drawCell(nctx, x, y, next.color, size);
+          nctx.restore();
+        }
+      });
+    });
+  }
+
+  function loop(time) {
+    if (!running) return;
+    if (!lastTime) lastTime = time;
+    const delta = time - lastTime;
+    lastTime = time;
+
+    if (!paused) {
+      dropTimer += delta;
+      elapsedMs += delta;
+
+      const newStage = Math.min(MAX_TIME_STAGES, Math.floor(elapsedMs / TIME_STAGE_INTERVAL_MS));
+      if (newStage !== timeStage) {
+        timeStage = newStage;
+        recalcDropInterval();
+        elapsedStatEl.classList.remove('pulse');
+        void elapsedStatEl.offsetWidth;
+        elapsedStatEl.classList.add('pulse');
+      }
+      updateElapsedDisplay();
+
+      if (dropTimer > dropInterval) {
+        drop();
+        dropTimer = 0;
+      }
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function startGame() {
+    board = createBoard();
+    score = 0;
+    lines = 0;
+    level = 1;
+    elapsedMs = 0;
+    timeStage = 0;
+    lastDisplayedSecond = -1;
+    dropTimer = 0;
+    lastTime = 0;
+    running = true;
+    gameOver = false;
+    paused = false;
+    recalcDropInterval();
+    overlay.classList.remove('show');
+    pauseBtn.textContent = '一時停止';
+    updateStats();
+    updateElapsedDisplay();
+    next = newPiece(randomType());
+    spawnPiece();
+    resizeBoard();
+    requestAnimationFrame(loop);
+    if (bgmEnabled && audioUnlocked) startBGM();
+  }
+
+  function togglePause() {
+    if (gameOver) return;
+    paused = !paused;
+    pauseBtn.textContent = paused ? '再開' : '一時停止';
+    if (paused) {
+      stopBGM();
+    } else if (bgmEnabled && audioUnlocked) {
+      startBGM();
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    switch (e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        moveLeft();
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        moveRight();
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        softDrop();
+        break;
+      case 'ArrowUp':
+      case ' ':
+        e.preventDefault();
+        rotate();
+        break;
+      case 'p':
+      case 'P':
+        togglePause();
+        break;
+    }
+  });
+
+  retryBtn.addEventListener('click', startGame);
+  pauseBtn.addEventListener('click', togglePause);
+
+  function bindHold(el, fn) {
+    let interval = null;
+    const start = (e) => {
+      e.preventDefault();
+      fn();
+      interval = setInterval(fn, 120);
+    };
+    const stop = () => {
+      if (interval) clearInterval(interval);
+      interval = null;
+    };
+    el.addEventListener('touchstart', start, { passive: false });
+    el.addEventListener('touchend', stop);
+    el.addEventListener('touchcancel', stop);
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', stop);
+    el.addEventListener('mouseleave', stop);
+  }
+
+  bindHold(document.getElementById('btn-left'), moveLeft);
+  bindHold(document.getElementById('btn-right'), moveRight);
+  bindHold(document.getElementById('btn-down'), softDrop);
+  document.getElementById('btn-rotate').addEventListener('click', (e) => {
+    e.preventDefault();
+    rotate();
+  });
+  document.getElementById('btn-rotate').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    rotate();
+  }, { passive: false });
+
+  setAppHeight();
+  window.addEventListener('resize', () => {
+    setAppHeight();
+    resizeBoard();
+  });
+  window.addEventListener('orientationchange', () => {
+    setAppHeight();
+    resizeBoard();
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      setAppHeight();
+      resizeBoard();
+    });
+  }
+
+  startGame();
 })();
 </script>
 </body>
